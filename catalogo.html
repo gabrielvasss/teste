@@ -1,0 +1,592 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Catálogo - Projeto aula 08</title>
+        <link rel="stylesheet" type="text/css" href="css/style.css">
+    </head>
+    <body>
+        <div class="header-aluno">Aluno: <span>Gabriel Vasconcelos</span></div>
+
+        <div class="catalogo-container">
+            <div class="catalogo-topo">
+                <a href="index.html" class="nav-arrow">&#8592; Voltar ao Cadastro</a>
+                <span id="contador" class="contador-produtos">0 produtos</span>
+            </div>
+
+            <div class="barra-acoes-catalogo">
+                <h1>Catálogo de Produtos</h1>
+                <div class="btns-ordenacao">
+                    <button type="button" class="btn-icon" id="toggle-theme">🌙 Escuro</button>
+                    <button type="button" class="btn-icon" onclick="exportarJSON()">Exportar</button>
+                    <button type="button" class="btn-icon" onclick="importarJSON()">Importar</button>
+                    <input type="file" id="input-arquivo" accept=".json" style="display: none;">
+                </div>
+            </div>
+
+            <div id="barra-stats" class="barra-stats" style="display:none;">
+                <div class="stat-card">
+                    <div class="stat-label">Total</div>
+                    <div class="stat-valor" id="stat-total">R$ 0,00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Mínimo</div>
+                    <div class="stat-valor" id="stat-min">R$ 0,00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Máximo</div>
+                    <div class="stat-valor" id="stat-max">R$ 0,00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Média</div>
+                    <div class="stat-valor" id="stat-avg">R$ 0,00</div>
+                </div>
+            </div>
+
+            <div class="barra-controles">
+                <div class="busca-container">
+                    <input type="text" id="busca" placeholder="Buscar produtos..." onkeyup="filtrar()">
+                </div>
+                <div class="btns-ordenacao">
+                    <button class="btn-tertiary" id="ordenar-preco" onclick="ordenarPreco()">Preço</button>
+                    <button class="btn-tertiary" id="ordenar-nome" onclick="ordenarNome()">Nome</button>
+                    <button class="btn-icon" id="btn-filtros" onclick="toggleFiltros()">Filtros</button>
+                    <button class="btn-icon" onclick="abrirConfirmarLimpar()">Limpar Tudo</button>
+                </div>
+            </div>
+
+            <div id="filtros-avancados" class="filtros-avancados" style="display:none;">
+                <div class="filtro-por-categoria" id="botoes-categoria"></div>
+                <div class="filtro-preco-container">
+                    <div>
+                        <label class="filtro-preco-label">Min</label>
+                        <input type="number" id="preco-min" step="0.01" min="0" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="filtro-preco-label">Max</label>
+                        <input type="number" id="preco-max" step="0.01" min="0" placeholder="---">
+                    </div>
+                    <button class="btn-icon limpar-filtros" onclick="limparFiltros()">Limpar Filtros</button>
+                </div>
+            </div>
+
+            <div id="produtos-grid" class="produtos-grid"></div>
+            <div id="paginacao" class="paginacao" style="display:none;"></div>
+        </div>
+
+        <div id="modal-overlay" class="modal-overlay">
+            <div class="modal">
+                <h2>Editar Produto</h2>
+                <div class="modal-conteudo">
+                    <label for="edit-nome">Nome</label>
+                    <input type="text" id="edit-nome" placeholder="Digite o nome...">
+                    <label for="edit-preco">Valor (R$)</label>
+                    <input type="number" id="edit-preco" step="0.01" min="0" placeholder="0,00">
+                    <label for="edit-categoria">Categoria</label>
+                    <input type="text" id="edit-categoria" placeholder="Ex: Eletrônicos...">
+                    <label for="edit-imagem">URL da Imagem</label>
+                    <input type="url" id="edit-imagem" placeholder="https://exemplo.com/foto.jpg">
+                </div>
+                <div class="modal-acoes">
+                    <button id="btn-cancelar" class="btn-secondary">Cancelar</button>
+                    <button id="btn-salvar" class="btn-primary">Salvar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-confirm-overlay" class="modal-overlay">
+            <div class="modal-confirm">
+                <h3>Todos os produtos serão removidos?</h3>
+                <div class="modal-acoes">
+                    <button id="btn-cancelar-limpar" class="btn-secondary">Cancelar</button>
+                    <button id="btn-confirmar-limpar" class="btn-primary">Confirmar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-detail-overlay" class="modal-overlay">
+            <div class="modal">
+                <h2 id="detail-nome"></h2>
+                <div class="modal-conteudo">
+                    <p style="font-size: 32px; font-weight: 600; margin-bottom: var(--spacing-md);" id="detail-preco"></p>
+                    <p><span class="text-caption">Categoria:</span> <span id="detail-categoria"></span></p>
+                    <p style="margin-top: var(--spacing-sm);"><span class="text-caption">Cadastrado em:</span> <span id="detail-data"></span></p>
+                </div>
+                <div class="modal-acoes">
+                    <button id="btn-fechar-detail" class="btn-secondary">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="toast"></div>
+
+        <script>
+            const grid = document.getElementById('produtos-grid');
+            const contador = document.getElementById('contador');
+            const inputBusca = document.getElementById('busca');
+            const toast = document.getElementById('toast');
+            const modalOverlay = document.getElementById('modal-overlay');
+            const btnCancelar = document.getElementById('btn-cancelar');
+            const btnSalvar = document.getElementById('btn-salvar');
+            const editNome = document.getElementById('edit-nome');
+            const editPreco = document.getElementById('edit-preco');
+            const editCategoria = document.getElementById('edit-categoria');
+            const editImagem = document.getElementById('edit-imagem');
+            const ordenarPrecoBtn = document.getElementById('ordenar-preco');
+            const ordenarNomeBtn = document.getElementById('ordenar-nome');
+            const barraStats = document.getElementById('barra-stats');
+            const filtrosAvancados = document.getElementById('filtros-avancados');
+            const botoesCategoria = document.getElementById('botoes-categoria');
+            const precoMin = document.getElementById('preco-min');
+            const precoMax = document.getElementById('preco-max');
+            const paginacao = document.getElementById('paginacao');
+            const modalConfirm = document.getElementById('modal-confirm-overlay');
+            const modalDetail = document.getElementById('modal-detail-overlay');
+            const btnCancelarLimpar = document.getElementById('btn-cancelar-limpar');
+            const btnConfirmarLimpar = document.getElementById('btn-confirmar-limpar');
+            const toggleTheme = document.getElementById('toggle-theme');
+
+            let produtos = [];
+            let indiceEdicao = null;
+            let produtoRemovidoTemp = null;
+            let ordenacao = { campo: null, direcao: 'asc' };
+            let filtroCategoria = 'todos';
+            let filtroPrecoMin = null;
+            let filtroPrecoMax = null;
+            let mostraFiltros = false;
+            let paginaAtual = 1;
+            const produtosPorPagina = 9;
+
+            const cores = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F', '#BB8FCE'];
+            const coresCategoria = {
+                'Eletrônicos': '#4FB6E4', 'Roupas': '#E45656', 'Alimentos': '#50C878',
+                'Móveis': '#D2B48C', 'Livros': '#9370DB', 'Esportes': '#FF8C42'
+            };
+
+            function getProdutos() {
+                return JSON.parse(localStorage.getItem('produtos') || '[]');
+            }
+
+            function setProdutos(lista) {
+                localStorage.setItem('produtos', JSON.stringify(lista));
+            }
+
+            function mostrarToast(mensagem, mostrarUndo = false, produtoRemovido = null) {
+                produtoRemovidoTemp = produtoRemovido;
+                toast.innerHTML = mostrarUndo
+                    ? `${mensagem}<button class="btn-action toast-undo" onclick="desfazerRemocao()">Desfazer</button>`
+                    : mensagem;
+                toast.classList.add('ativo');
+                if (mostrarUndo) {
+                    setTimeout(() => {
+                        if (toast.classList.contains('ativo')) {
+                            toast.classList.remove('ativo');
+                            produtoRemovidoTemp = null;
+                        }
+                    }, 3000);
+                } else {
+                    setTimeout(() => toast.classList.remove('ativo'), 2000);
+                }
+            }
+
+            function formatarMoeda(valor) {
+                return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            }
+
+            function getAvatarCor(nome) {
+                const soma = nome.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+                return cores[soma % cores.length];
+            }
+
+            function getIniciais(nome) {
+                return nome.substring(0, 2).toUpperCase();
+            }
+
+            function formatarData(dataISO) {
+                return new Date(dataISO).toLocaleDateString('pt-BR', {
+                    day: '2-digit', month: 'short', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            }
+
+            function atualizarStats(lista) {
+                if (lista.length === 0) {
+                    barraStats.style.display = 'none';
+                    return;
+                }
+                barraStats.style.display = 'flex';
+                const precos = lista.map(p => parseFloat(p.preco));
+                const total = precos.reduce((a, b) => a + b, 0);
+                const min = Math.min(...precos);
+                const max = Math.max(...precos);
+                const avg = total / precos.length;
+
+                document.getElementById('stat-total').textContent = formatarMoeda(total);
+                document.getElementById('stat-min').textContent = formatarMoeda(min);
+                document.getElementById('stat-max').textContent = formatarMoeda(max);
+                document.getElementById('stat-avg').textContent = formatarMoeda(avg);
+            }
+
+            function aplicarFiltros(lista) {
+                return lista.filter(p => {
+                    const matchNome = p.nome.toLowerCase().includes(inputBusca.value.toLowerCase());
+                    const matchCategoria = filtroCategoria === 'todos' || (p.categoria || 'Outros') === filtroCategoria;
+                    const preco = parseFloat(p.preco);
+                    const matchMin = filtroPrecoMin === null || preco >= filtroPrecoMin;
+                    const matchMax = filtroPrecoMax === null || preco <= filtroPrecoMax;
+                    return matchNome && matchCategoria && matchMin && matchMax;
+                });
+            }
+
+            function paginar(lista) {
+                const total = lista.length;
+                const inicio = (paginaAtual - 1) * produtosPorPagina;
+                const fim = inicio + produtosPorPagina;
+                const pagina = lista.slice(inicio, fim);
+
+                paginacao.innerHTML = '';
+                paginacao.style.display = total <= produtosPorPagina ? 'none' : 'flex';
+
+                if (total > produtosPorPagina) {
+                    const totalPaginas = Math.ceil(total / produtosPorPagina);
+                    const btnAnterior = document.createElement('button');
+                    btnAnterior.className = 'btn-page';
+                    btnAnterior.textContent = '←';
+                    btnAnterior.disabled = paginaAtual === 1;
+                    btnAnterior.onclick = () => { if (paginaAtual > 1) { paginaAtual--; renderizarPaginada(); } };
+                    paginacao.appendChild(btnAnterior);
+
+                    for (let i = 1; i <= totalPaginas; i++) {
+                        const btn = document.createElement('button');
+                        btn.className = `btn-page ${i === paginaAtual ? 'ativo' : ''}`;
+                        btn.textContent = i;
+                        btn.onclick = () => { paginaAtual = i; renderizarPaginada(); };
+                        paginacao.appendChild(btn);
+                    }
+
+                    const btnProximo = document.createElement('button');
+                    btnProximo.className = 'btn-page';
+                    btnProximo.textContent = '→';
+                    btnProximo.disabled = paginaAtual === totalPaginas;
+                    btnProximo.onclick = () => { if (paginaAtual < totalPaginas) { paginaAtual++; renderizarPaginada(); } };
+                    paginacao.appendChild(btnProximo);
+                }
+
+                return pagina;
+            }
+
+            function renderizar(lista = null) {
+                produtos = getProdutos();
+                let filtrados = lista || produtos;
+
+                contador.textContent = `${produtos.length} produto${produtos.length !== 1 ? 's' : ''}`;
+                document.querySelectorAll('.produto-card').forEach(card => card.classList.remove('visivel'));
+                atualizarBotoesCategoria();
+
+                if (filtrados.length === 0) {
+                    const temProdutos = produtos.length > 0;
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📦</div>
+                            <p>${temProdutos ? 'Nenhum produto encontrado com os filtros atuais.' : 'Nenhum produto cadastrado ainda.'}</p>
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = filtrados.map((p, i) => {
+                        const indiceReal = produtos.indexOf(p);
+                        const cor = p.imagem ? null : getAvatarCor(p.nome);
+                        const iniciais = getIniciais(p.nome);
+                        const corTag = coresCategoria[p.categoria] || '#666';
+                        const dataCadastro = p.data ? formatarData(p.data) : '-';
+                        const imgHtml = p.imagem
+                            ? `<img src="${p.imagem}" alt="${p.nome}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-lg);">`
+                            : `<div class="produto-imagem" style="background:${cor};">${iniciais}</div>`;
+                        return `
+                            <div class="produto-card" style="animation-delay: ${i * 0.05}s" onclick="abrirDetalhe(${indiceReal})">
+                                ${imgHtml}
+                                <div class="produto-info">
+                                    <div>
+                                        <span class="categoria-tag" style="background:${corTag};">${p.categoria || 'Outros'}</span>
+                                        <h2>${p.nome}</h2>
+                                        <span class="preco">${formatarMoeda(parseFloat(p.preco))}</span>
+                                        ${p.data ? `<span class="badge-data">${dataCadastro}</span>` : ''}
+                                    </div>
+                                    <div class="btns-acao">
+                                        <button class="btn-action" onclick="event.stopPropagation(); abrirEditar(${indiceReal})">Editar</button>
+                                        <button class="btn-action" onclick="event.stopPropagation(); excluir(${indiceReal})">Excluir</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    setTimeout(() => {
+                        document.querySelectorAll('.produto-card').forEach(card => card.classList.add('visivel'));
+                    }, 50);
+                }
+
+                atualizarStats(filtrados);
+            }
+
+            function renderizarPaginada() {
+                produtos = getProdutos();
+                const filtrados = aplicarFiltros(produtos);
+                if (ordenacao.campo) {
+                    filtrados.sort((a, b) => {
+                        if (ordenacao.campo === 'preco') {
+                            return ordenacao.direcao === 'asc' ? a.preco - b.preco : b.preco - a.preco;
+                        }
+                        return ordenacao.direcao === 'asc'
+                            ? a.nome.localeCompare(b.nome)
+                            : b.nome.localeCompare(a.nome);
+                    });
+                }
+                const pagina = paginar(filtrados);
+                renderizar(pagina);
+            }
+
+            function excluir(indice) {
+                produtos = getProdutos();
+                produtoRemovidoTemp = produtos[indice];
+                produtos.splice(indice, 1);
+                setProdutos(produtos);
+                mostrarToast('Produto removido', true);
+                renderizarPaginada();
+            }
+
+            function desfazerRemocao() {
+                if (produtoRemovidoTemp) {
+                    let produtos = getProdutos();
+                    produtos.unshift(produtoRemovidoTemp);
+                    setProdutos(produtos);
+                    produtoRemovidoTemp = null;
+                    toast.classList.remove('ativo');
+                    mostrarToast('Produto restaurado');
+                    setTimeout(() => renderizarPaginada(), 500);
+                }
+            }
+
+            function abrirEditar(indice) {
+                produtos = getProdutos();
+                indiceEdicao = indice;
+                editNome.value = produtos[indice].nome;
+                editPreco.value = produtos[indice].preco;
+                editCategoria.value = produtos[indice].categoria || '';
+                editImagem.value = produtos[indice].imagem || '';
+                modalOverlay.classList.add('ativo');
+            }
+
+            function fecharModal() {
+                modalOverlay.classList.remove('ativo');
+                indiceEdicao = null;
+            }
+
+            function salvarEdicao() {
+                if (indiceEdicao !== null) {
+                    produtos = getProdutos();
+                    produtos[indiceEdicao].nome = editNome.value.trim();
+                    produtos[indiceEdicao].preco = parseFloat(editPreco.value).toFixed(2);
+                    produtos[indiceEdicao].categoria = editCategoria.value.trim() || 'Outros';
+                    produtos[indiceEdicao].imagem = editImagem.value.trim() || null;
+                    setProdutos(produtos);
+                    mostrarToast('Produto atualizado');
+                    fecharModal();
+                    renderizarPaginada();
+                }
+            }
+
+            function abrirDetalhe(indice) {
+                produtos = getProdutos();
+                const p = produtos[indice];
+                document.getElementById('detail-nome').textContent = p.nome;
+                document.getElementById('detail-preco').textContent = formatarMoeda(parseFloat(p.preco));
+                document.getElementById('detail-categoria').textContent = p.categoria || 'Outros';
+                document.getElementById('detail-data').textContent = p.data ? formatarData(p.data) : 'N/A';
+                modalDetail.classList.add('ativo');
+            }
+
+            function fecharDetalhe() {
+                modalDetail.classList.remove('ativo');
+            }
+
+            function abrirConfirmarLimpar() {
+                modalConfirm.classList.add('ativo');
+            }
+
+            function fecharConfirmarLimpar() {
+                modalConfirm.classList.remove('ativo');
+            }
+
+            function limparTudo() {
+                localStorage.removeItem('produtos');
+                mostrarToast('Todos os produtos removidos');
+                fecharConfirmarLimpar();
+                paginaAtual = 1;
+                ordenacao = { campo: null, direcao: 'asc' };
+                ordenarPrecoBtn.classList.remove('ativo', 'asc', 'desc');
+                ordenarNomeBtn.classList.remove('ativo', 'asc', 'desc');
+                renderizar();
+            }
+
+            function filtrar() {
+                paginaAtual = 1;
+                renderizarPaginada();
+            }
+
+            function toggleFiltros() {
+                mostraFiltros = !mostraFiltros;
+                filtrosAvancados.style.display = mostraFiltros ? 'block' : 'none';
+                if (mostraFiltros) atualizarBotoesCategoria();
+            }
+
+            function atualizarBotoesCategoria() {
+                if (botoesCategoria) {
+                    const categorias = [...new Set(getProdutos().map(p => p.categoria || 'Outros'))];
+                    botoesCategoria.innerHTML = categorias.map(cat => {
+                        const ativa = cat === filtroCategoria;
+                        return `<button class="btn-tertiary ${ativa ? 'ativo' : ''}" onclick="filtrarPorCategoria('${cat}')">${cat}</button>`;
+                    }).join('');
+                }
+            }
+
+            function filtrarPorCategoria(categoria) {
+                filtroCategoria = categoria;
+                paginaAtual = 1;
+                renderizarPaginada();
+            }
+
+            function limparFiltros() {
+                filtroCategoria = 'todos';
+                filtroPrecoMin = null;
+                filtroPrecoMax = null;
+                inputBusca.value = '';
+                precoMin.value = '';
+                precoMax.value = '';
+                ordenarPrecoBtn.classList.remove('ativo', 'asc', 'desc');
+                ordenarNomeBtn.classList.remove('ativo', 'asc', 'desc');
+                ordenacao = { campo: null, direcao: 'asc' };
+                paginaAtual = 1;
+                renderizar();
+            }
+
+            function ordenarPreco() {
+                produtos = getProdutos();
+                if (ordenacao.campo === 'preco') {
+                    ordenacao.direcao = ordenacao.direcao === 'asc' ? 'desc' : 'asc';
+                } else {
+                    ordenacao.campo = 'preco';
+                    ordenacao.direcao = 'asc';
+                }
+                ordenarPrecoBtn.classList.add('ativo', ordenacao.direcao);
+                ordenarNomeBtn.classList.remove('ativo', 'asc', 'desc');
+                renderizarPaginada();
+            }
+
+            function ordenarNome() {
+                produtos = getProdutos();
+                if (ordenacao.campo === 'nome') {
+                    ordenacao.direcao = ordenacao.direcao === 'asc' ? 'desc' : 'asc';
+                } else {
+                    ordenacao.campo = 'nome';
+                    ordenacao.direcao = 'asc';
+                }
+                ordenarNomeBtn.classList.add('ativo', ordenacao.direcao);
+                ordenarPrecoBtn.classList.remove('ativo', 'asc', 'desc');
+                renderizarPaginada();
+            }
+
+            function exportarJSON() {
+                produtos = getProdutos();
+                const dados = JSON.stringify(produtos, null, 2);
+                const blob = new Blob([dados], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'produtos.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                mostrarToast('Exportado com sucesso!');
+            }
+
+            function importarJSON() {
+                document.getElementById('input-arquivo').click();
+            }
+
+            document.getElementById('input-arquivo').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const dados = JSON.parse(event.target.result);
+                        if (Array.isArray(dados)) {
+                            setProdutos(dados);
+                            paginaAtual = 1;
+                            mostrarToast('Produtos importados com sucesso!');
+                            renderizar();
+                        } else {
+                            mostrarToast('Formato inválido');
+                        }
+                    } catch (err) {
+                        mostrarToast('Erro ao ler arquivo');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            });
+
+            precoMin.addEventListener('input', () => {
+                filtroPrecoMin = precoMin.value ? parseFloat(precoMin.value) : null;
+                paginaAtual = 1;
+                renderizarPaginada();
+            });
+            precoMax.addEventListener('input', () => {
+                filtroPrecoMax = precoMax.value ? parseFloat(precoMax.value) : null;
+                paginaAtual = 1;
+                renderizarPaginada();
+            });
+
+            btnCancelar.addEventListener('click', fecharModal);
+            btnSalvar.addEventListener('click', salvarEdicao);
+            btnCancelarLimpar.addEventListener('click', fecharConfirmarLimpar);
+            btnConfirmarLimpar.addEventListener('click', limparTudo);
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) fecharModal();
+            });
+            modalConfirm.addEventListener('click', (e) => {
+                if (e.target === modalConfirm) fecharConfirmarLimpar();
+            });
+            modalDetail.addEventListener('click', (e) => {
+                if (e.target === modalDetail) fecharDetalhe();
+            });
+            document.getElementById('btn-fechar-detail').addEventListener('click', fecharDetalhe);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (modalOverlay.classList.contains('ativo')) fecharModal();
+                    if (modalConfirm.classList.contains('ativo')) fecharConfirmarLimpar();
+                    if (modalDetail.classList.contains('ativo')) fecharDetalhe();
+                    if (toast.classList.contains('ativo') && !produtoRemovidoTemp) {
+                        toast.classList.remove('ativo');
+                    }
+                }
+                if (e.key === 'Enter' && modalOverlay.classList.contains('ativo')) {
+                    salvarEdicao();
+                }
+            });
+
+            toggleTheme.addEventListener('click', () => {
+                document.body.classList.toggle('light-theme');
+                const isLight = document.body.classList.contains('light-theme');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                toggleTheme.textContent = isLight ? '☀️ Claro' : '🌙 Escuro';
+            });
+
+            if (localStorage.getItem('theme') === 'light') {
+                document.body.classList.add('light-theme');
+                toggleTheme.textContent = '☀️ Claro';
+            }
+
+            renderizar();
+        </script>
+    </body>
+</html>

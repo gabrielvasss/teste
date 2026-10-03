@@ -1,0 +1,151 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Projeto aula 08</title>
+        <link rel="stylesheet" type="text/css" href="css/style.css">
+    </head>
+    <body>
+        <div class="header-aluno">Aluno: <span>Gabriel Vasconcelos</span></div>
+
+        <div class="page-content">
+            <div class="barra-acoes-cima">
+                <span id="contador" class="contador-produtos">Total: 0 produtos</span>
+                <button type="button" class="btn-icon" id="toggle-theme">🌙 Escuro</button>
+            </div>
+
+            <form id="form-produto" class="form-cadastro">
+                <h1>Cadastro de Produtos</h1>
+
+                <label for="name">Nome do Produto</label>
+                <input type="text" id="name" placeholder="Digite o nome..." required>
+                <span id="erro-nome" class="erro-texto">Digite o nome do produto</span>
+
+                <label for="preco">Valor (R$)</label>
+                <input type="number" id="preco" step="0.01" min="0" placeholder="0,00" required>
+                <span id="erro-preco" class="erro-texto">Digite um valor válido</span>
+
+                <label for="categoria">Categoria</label>
+                <input type="text" id="categoria" list="categorias-sugest" placeholder="Ex: Eletrônicos, Roupas...">
+                <datalist id="categorias-sugest">
+                    <option value="Eletrônicos">
+                    <option value="Roupas">
+                    <option value="Alimentos">
+                    <option value="Móveis">
+                    <option value="Livros">
+                    <option value="Esportes">
+                </datalist>
+
+                <label for="imagem">URL da Imagem (opcional)</label>
+                <input type="url" id="imagem" placeholder="https://exemplo.com/foto.jpg">
+
+                <button type="submit" class="btn-primary">Cadastrar</button>
+                <a href="catalogo.html" class="nav-link">Ver Catálogo</a>
+            </form>
+        </div>
+
+        <div id="toast" class="toast">Produto cadastrado com sucesso!</div>
+
+        <script>
+            const form = document.getElementById('form-produto');
+            const inputNome = document.getElementById('name');
+            const inputPreco = document.getElementById('preco');
+            const inputCategoria = document.getElementById('categoria');
+            const inputImagem = document.getElementById('imagem');
+            const erroNome = document.getElementById('erro-nome');
+            const erroPreco = document.getElementById('erro-preco');
+            const contador = document.getElementById('contador');
+            const toast = document.getElementById('toast');
+            const toggleTheme = document.getElementById('toggle-theme');
+
+            function atualizarContador() {
+                const produtos = JSON.parse(localStorage.getItem('produtos') || '[]');
+                contador.textContent = `Total: ${produtos.length} produto${produtos.length !== 1 ? 's' : ''}`;
+            }
+
+            function mostrarToast(mensagem) {
+                toast.textContent = mensagem;
+                toast.classList.add('ativo');
+                setTimeout(() => toast.classList.remove('ativo'), 2000);
+            }
+
+            function limparErros() {
+                inputNome.classList.remove('input-error');
+                inputPreco.classList.remove('input-error');
+                erroNome.style.display = 'none';
+                erroPreco.style.display = 'none';
+            }
+
+            inputNome.addEventListener('input', () => {
+                if (inputNome.value.trim()) {
+                    inputNome.classList.remove('input-error');
+                    erroNome.style.display = 'none';
+                }
+            });
+
+            inputPreco.addEventListener('input', () => {
+                if (inputPreco.value && parseFloat(inputPreco.value) >= 0) {
+                    inputPreco.classList.remove('input-error');
+                    erroPreco.style.display = 'none';
+                }
+            });
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                limparErros();
+
+                const nome = inputNome.value.trim();
+                const preco = inputPreco.value;
+                let valido = true;
+
+                if (!nome) {
+                    inputNome.classList.add('input-error');
+                    erroNome.style.display = 'block';
+                    valido = false;
+                }
+
+                if (!preco || parseFloat(preco) < 0) {
+                    inputPreco.classList.add('input-error');
+                    erroPreco.style.display = 'block';
+                    valido = false;
+                }
+
+                if (!valido) return;
+
+                const produto = {
+                    nome: nome,
+                    preco: parseFloat(preco).toFixed(2),
+                    categoria: inputCategoria.value.trim() || 'Outros',
+                    imagem: inputImagem.value.trim() || null,
+                    data: new Date().toISOString()
+                };
+                let produtos = JSON.parse(localStorage.getItem('produtos') || '[]');
+                produtos.push(produto);
+                localStorage.setItem('produtos', JSON.stringify(produtos));
+                form.reset();
+                mostrarToast('Produto cadastrado com sucesso!');
+                atualizarContador();
+            });
+
+            toggleTheme.addEventListener('click', () => {
+                document.body.classList.toggle('light-theme');
+                const isLight = document.body.classList.contains('light-theme');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                toggleTheme.textContent = isLight ? '☀️ Claro' : '🌙 Escuro';
+            });
+
+            if (localStorage.getItem('theme') === 'light') {
+                document.body.classList.add('light-theme');
+                toggleTheme.textContent = '☀️ Claro';
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && toast.classList.contains('ativo')) {
+                    toast.classList.remove('ativo');
+                }
+            });
+
+            inputNome.focus();
+            atualizarContador();
+        </script>
+    </body>
+</html>
